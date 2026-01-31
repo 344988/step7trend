@@ -20,6 +20,7 @@ class S7Service:
     ) -> None:
         self.storage = storage
         self.tags: List[TagSpec] = list(tags or [])
+        self.active_tags: List[TagSpec] = list(self.tags)
         self.poll_interval = poll_interval
         self.state = state
         self.logger = logger or (lambda msg: None)
@@ -46,10 +47,22 @@ class S7Service:
 
     def set_tags(self, tags: Iterable[TagSpec]) -> None:
         self.tags = list(tags)
+        self.active_tags = list(self.tags)
         self.storage.upsert_tags(self.tags)
         if self.state:
             with self.state.lock:
                 self.state.latest_tags = {tag.name: 0.0 for tag in self.tags}
+
+    def set_active_tags(self, tag_names: Iterable[str]) -> None:
+        selected = []
+        selected_set = set(tag_names)
+        for tag in self.tags:
+            if tag.name in selected_set:
+                selected.append(tag)
+        self.active_tags = selected
+        if self.state:
+            with self.state.lock:
+                self.state.latest_tags = {tag.name: 0.0 for tag in self.active_tags}
 
     def start_polling(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -67,7 +80,7 @@ class S7Service:
         values = {}
         if not self.driver:
             raise RuntimeError("S7 driver is not connected")
-        for tag in self.tags:
+        for tag in self.active_tags:
             values[tag.name] = self.driver.read_tag(tag)
         return values
 
