@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual env
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Build
+dist/
+build/
+*.spec
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local configs
+*.local.json
+*.env
+
+app0/
