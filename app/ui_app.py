@@ -112,16 +112,20 @@ def _render_scan_hits(hits):
         label = f"{ip}  ports={hit.open_ports}"
         tag = _safe_tag_from_ip(ip)
 
+        def on_select(sender, app_data, u=ip):
+            if dpg.does_item_exist("selected_ip"):
+                dpg.set_value("selected_ip", u)
+            else:
+                log.log("UI warning: selected_ip field not found.")
+            log.set_status(f"Выбран: {u}")
+            log.log(f"Selected IP: {u}")
+
         dpg.add_selectable(
             label=label,
             parent="scan_results",
             tag=tag,
             user_data=ip,
-            callback=lambda s, a, u=ip: (
-                dpg.set_value("selected_ip", u),
-                log.set_status(f"Выбран: {u}"),
-                log.log(f"Selected IP: {u}"),
-            ),
+            callback=on_select,
         )
 
         with dpg.popup(tag, mousebutton=dpg.mvMouseButton_Right):
@@ -186,8 +190,9 @@ def connect_controller(ip: str):
         state.selected_ip = ip
         log.set_status(f"Подключено: {ip}")
     except Exception as exc:
-        log.set_status(f"Ошибка подключения: {exc}")
-        log.log(f"Connect error: {exc}")
+        hint = "Проверьте параметры rack/slot (обычно 0/1 или 0/2) и доступность порта 102."
+        log.set_status(f"Ошибка подключения: {exc}. {hint}")
+        log.log(f"Connect error: {exc} | {hint}")
 
 
 def disconnect_controller(ip: str):
@@ -442,6 +447,8 @@ def _build_layout():
             dpg.add_input_float(label="timeout", default_value=0.25, width=120, tag="scan_timeout")
             dpg.add_input_int(label="workers", default_value=256, width=120, tag="scan_workers")
             dpg.add_button(label="Scan", callback=log.safe_cb("Scan", lambda *_: scan_clicked()))
+
+        dpg.add_input_text(label="Selected IP", default_value="", width=260, tag="selected_ip", readonly=True)
 
         with dpg.child_window(tag="scan_results", height=220, autosize_x=True, border=True):
             dpg.add_text("Результаты появятся здесь.")

@@ -12,6 +12,12 @@
 pip install python-snap7
 ```
 
+Или установите все зависимости проекта:
+
+```bash
+pip install -r requirements.txt
+```
+
 Пример подключения и чтения тегов с записью в БД:
 
 ```python
