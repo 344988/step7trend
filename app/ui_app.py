@@ -42,6 +42,8 @@ TREND_WINDOW_TAG = "trend_window"
 TREND_PAUSE_TAG = "trend_pause"
 
 trend_last_update = 0.0
+trend_windows = {}
+trend_window_counter = 0
 
 
 def ui_post(fn):
@@ -64,6 +66,7 @@ def _ui_pump():
 def _frame_cb(sender=None, app_data=None):
     _ui_pump()
     _refresh_trend()
+    _refresh_trend_windows()
     # re-schedule next frame
     dpg.set_frame_callback(dpg.get_frame_count() + 1, _frame_cb)
 
@@ -256,6 +259,9 @@ def _render_tags():
         return
     if dpg.does_item_exist(TREND_TAG_COMBO):
         dpg.configure_item(TREND_TAG_COMBO, items=tags)
+    for window in trend_windows.values():
+        if dpg.does_item_exist(window["tag"]):
+            dpg.configure_item(window["tag"], items=tags)
     for tag in tags:
         with dpg.group(horizontal=True, parent=TAG_LIST_PARENT):
             dpg.add_text(tag)
@@ -307,6 +313,70 @@ def _refresh_trend():
     xs = [p[0] - since_ts for p in points]
     ys = [p[1] for p in points]
     dpg.set_value(TREND_SERIES_TAG, [xs, ys])
+
+
+def _refresh_trend_windows():
+    now = time.time()
+    for window_id, window in list(trend_windows.items()):
+        if not dpg.does_item_exist(window["series"]):
+            trend_windows.pop(window_id, None)
+            continue
+        if dpg.get_value(window["pause"]):
+            continue
+        last = window.get("last_update", 0.0)
+        if now - last < 1.0:
+            continue
+        window["last_update"] = now
+        tag = dpg.get_value(window["tag"])
+        if not tag:
+            continue
+        window_sec = float(dpg.get_value(window["window"]))
+        since_ts = now - window_sec
+        points = storage.get_series(tag_name=tag, since_ts=since_ts, limit=1000)
+        xs = [p[0] - since_ts for p in points]
+        ys = [p[1] for p in points]
+        dpg.set_value(window["series"], [xs, ys])
+        y_min = float(dpg.get_value(window["y_min"]))
+        y_max = float(dpg.get_value(window["y_max"]))
+        if y_max > y_min:
+            dpg.set_axis_limits(window["y_axis"], y_min, y_max)
+
+
+def open_trend_window():
+    global trend_window_counter
+    trend_window_counter += 1
+    window_id = f"trend_window_{trend_window_counter}"
+    tag_combo = f"{window_id}_tag"
+    window_input = f"{window_id}_window"
+    pause_checkbox = f"{window_id}_pause"
+    y_min = f"{window_id}_y_min"
+    y_max = f"{window_id}_y_max"
+    series_tag = f"{window_id}_series"
+    y_axis = f"{window_id}_y_axis"
+
+    with dpg.window(label=f"Тренд #{trend_window_counter}", width=520, height=360, tag=window_id):
+        with dpg.group(horizontal=True):
+            dpg.add_combo(items=state.get_tags(), width=200, tag=tag_combo, default_value="")
+            dpg.add_input_float(label="Окно, сек", default_value=300.0, width=140, tag=window_input)
+            dpg.add_checkbox(label="Пауза", default_value=False, tag=pause_checkbox)
+        with dpg.group(horizontal=True):
+            dpg.add_slider_float(label="Мин", min_value=-1000.0, max_value=1000.0, default_value=0.0, width=220, tag=y_min)
+            dpg.add_slider_float(label="Макс", min_value=-1000.0, max_value=1000.0, default_value=100.0, width=220, tag=y_max)
+        with dpg.plot(label="", height=220, width=-1):
+            dpg.add_plot_axis(dpg.mvXAxis, label="t, sec")
+            with dpg.plot_axis(dpg.mvYAxis, label="value", tag=y_axis):
+                dpg.add_line_series([], [], tag=series_tag, label="")
+
+    trend_windows[window_id] = {
+        "tag": tag_combo,
+        "window": window_input,
+        "pause": pause_checkbox,
+        "y_min": y_min,
+        "y_max": y_max,
+        "series": series_tag,
+        "y_axis": y_axis,
+        "last_update": 0.0,
+    }
 
 
 def export_to_excel():
@@ -385,6 +455,7 @@ def _build_layout():
             dpg.add_checkbox(label="Пауза", default_value=False, tag=TREND_PAUSE_TAG)
             dpg.add_button(label="Play", callback=lambda: dpg.set_value(TREND_PAUSE_TAG, False))
             dpg.add_button(label="Pause", callback=lambda: dpg.set_value(TREND_PAUSE_TAG, True))
+            dpg.add_button(label="Новое окно тренда", callback=lambda: open_trend_window())
 
         with dpg.plot(label="", height=260, width=-1):
             dpg.add_plot_axis(dpg.mvXAxis, label="t, sec")
