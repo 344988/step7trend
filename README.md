@@ -18,6 +18,12 @@ pip install python-snap7
 pip install -r requirements.txt
 ```
 
+Проверка snap7:
+
+```bash
+python -c "import snap7; print(snap7.__version__)"
+```
+
 Пример подключения и чтения тегов с записью в БД:
 
 ```python

@@ -4,17 +4,35 @@ from dataclasses import dataclass
 from typing import Optional
 import struct
 
+SNAP7_IMPORT_ERROR = None
 try:
     import snap7
     from snap7 import types as snap7_types
     from snap7 import util as snap7_util
 
     SNAP7_AVAILABLE = True
-except ImportError:  # pragma: no cover - optional dependency
+except ModuleNotFoundError as exc:  # pragma: no cover - optional dependency
     snap7 = None
     snap7_types = None
     snap7_util = None
     SNAP7_AVAILABLE = False
+    SNAP7_IMPORT_ERROR = (
+        "python-snap7 is not installed. Install: pip install python-snap7"
+    )
+except ImportError as exc:  # pragma: no cover - optional dependency
+    snap7 = None
+    snap7_types = None
+    snap7_util = None
+    SNAP7_AVAILABLE = False
+    SNAP7_IMPORT_ERROR = (
+        "python-snap7 import error. Reinstall: pip install --force-reinstall python-snap7"
+    )
+except Exception as exc:  # pragma: no cover - optional dependency
+    snap7 = None
+    snap7_types = None
+    snap7_util = None
+    SNAP7_AVAILABLE = False
+    SNAP7_IMPORT_ERROR = f"snap7 failed to load: {type(exc).__name__}: {exc}"
 
 
 @dataclass(frozen=True)
