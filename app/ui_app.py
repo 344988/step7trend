@@ -16,7 +16,7 @@ from app.core.logger import UILogger
 from app.services.scan_service import ScanService
 from app.services.s7_service import S7Service
 from app.storage.workspace import WorkspaceStorage
-from app.drivers.s7_driver import TagSpec
+from app.drivers.s7_driver import TagSpec, SNAP7_AVAILABLE
 
 
 # ---------------------------
@@ -178,6 +178,10 @@ def scan_clicked():
 
 def connect_controller(ip: str):
     try:
+        if not SNAP7_AVAILABLE:
+            log.set_status("python-snap7 не установлен. Установите: pip install python-snap7")
+            log.log("Connect error: python-snap7 is not installed. Install it to enable S7 communication.")
+            return
         s7_service.connect(ip=ip)
         state.selected_ip = ip
         log.set_status(f"Подключено: {ip}")

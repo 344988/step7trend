@@ -6,6 +6,12 @@
 
 > ⚠️ Для работы с S7 нужен пакет `python-snap7`.
 
+Если видите ошибку `python-snap7 is not installed`, установите зависимость:
+
+```bash
+pip install python-snap7
+```
+
 Пример подключения и чтения тегов с записью в БД:
 
 ```python
