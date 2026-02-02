@@ -193,6 +193,11 @@ def scan_clicked():
 
 def connect_controller(ip: str):
     try:
+        ip_value = (ip or state.selected_ip or "").strip()
+        if not ip_value and dpg.does_item_exist(SELECTED_IP_TAG):
+            ip_value = (dpg.get_value(SELECTED_IP_TAG) or "").strip()
+        if not ip_value:
+            raise ValueError("IP не выбран/пустой (получили None или '').")
         if not SNAP7_AVAILABLE:
             message = SNAP7_IMPORT_ERROR or "python-snap7 не установлен. Установите: pip install python-snap7"
             hint = SNAP7_IMPORT_HINT
@@ -206,9 +211,10 @@ def connect_controller(ip: str):
             if SNAP7_IMPORT_TRACEBACK:
                 log.log(SNAP7_IMPORT_TRACEBACK)
             return
-        s7_service.connect(ip=ip)
-        state.selected_ip = ip
-        log.set_status(f"Подключено: {ip}")
+        log.log(f"CONNECT PARAMS: ip={ip_value!r} rack=0 slot=1 port=102")
+        s7_service.connect(ip=ip_value)
+        state.selected_ip = ip_value
+        log.set_status(f"Подключено: {ip_value}")
     except Exception as exc:
         hint = "Проверьте параметры rack/slot (обычно 0/1 или 0/2) и доступность порта 102."
         log.set_status(f"Ошибка подключения: {exc}. {hint}")
