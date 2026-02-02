@@ -50,6 +50,7 @@ TREND_TAG_COMBO = "trend_tag_combo"
 TREND_MODE_TAG = "trend_mode"
 TREND_WINDOW_TAG = "trend_window"
 TREND_PAUSE_TAG = "trend_pause"
+SELECTED_IP_TAG = "selected_ip_input"
 
 trend_last_update = 0.0
 trend_windows = {}
@@ -123,8 +124,8 @@ def _render_scan_hits(hits):
         tag = _safe_tag_from_ip(ip)
 
         def on_select(sender, app_data, u=ip):
-            if dpg.does_item_exist("selected_ip"):
-                dpg.set_value("selected_ip", u)
+            if dpg.does_item_exist(SELECTED_IP_TAG):
+                dpg.set_value(SELECTED_IP_TAG, u)
             else:
                 log.log("UI warning: selected_ip field not found.")
             log.set_status(f"Выбран: {u}")
@@ -480,9 +481,7 @@ def _build_layout():
             dpg.add_button(label="Scan", callback=log.safe_cb("Scan", lambda *_: scan_clicked()))
             dpg.add_button(label="Проверить snap7 импорт", callback=log.safe_cb("snap7", lambda *_: check_snap7_import()))
 
-        dpg.add_input_text(label="Selected IP", default_value="", width=260, tag="selected_ip", readonly=True)
-
-        dpg.add_input_text(label="Selected IP", default_value="", width=260, tag="selected_ip", readonly=True)
+        dpg.add_input_text(label="Selected IP", default_value="", width=260, tag=SELECTED_IP_TAG, readonly=True)
 
         with dpg.child_window(tag="scan_results", height=220, autosize_x=True, border=True):
             dpg.add_text("Результаты появятся здесь.")
