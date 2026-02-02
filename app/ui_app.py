@@ -246,26 +246,49 @@ def show_tag_import_dialog():
         dpg.add_input_text(tag="tags_import_text", multiline=True, height=360, width=-1)
 
         with dpg.group(horizontal=True):
+            dpg.add_button(label="Вставить пример", callback=lambda: _fill_tag_example())
             dpg.add_button(label="Импорт", callback=lambda: import_tags_from_text())
             dpg.add_button(label="Закрыть", callback=lambda: dpg.delete_item(tag))
+
+
+def _fill_tag_example():
+    example = "\n".join(
+        [
+            "# Пример для DB1 (REAL/DINT)",
+            "PN_TEMP,DB,1,0,REAL,",
+            "PN_LEVEL,DB,1,4,REAL,",
+            "PN_ENCODER,DB,1,8,DINT,",
+            "PN_CURRENT,DB,1,12,REAL,",
+            "PN_SPEED,DB,1,16,REAL,",
+        ]
+    )
+    if dpg.does_item_exist("tags_import_text"):
+        dpg.set_value("tags_import_text", example)
+        log.set_status("Пример тегов вставлен.")
 
 
 def import_tags_from_text():
     text = dpg.get_value("tags_import_text") or ""
     tags = []
-    for line in text.splitlines():
+    errors = []
+    for idx, line in enumerate(text.splitlines(), start=1):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
         parts = [p.strip() for p in line.split(",")]
         if len(parts) < 5:
+            errors.append(f"Строка {idx}: недостаточно полей")
             continue
-        name = parts[0]
-        area = parts[1]
-        db = int(parts[2])
-        byte_index = int(parts[3])
-        data_type = parts[4]
-        bit_index = int(parts[5]) if len(parts) > 5 and parts[5] else None
+        try:
+            name = parts[0]
+            area = parts[1]
+            db = int(parts[2])
+            byte_index = int(parts[3])
+            data_type = parts[4]
+            bit_index = int(parts[5]) if len(parts) > 5 and parts[5] else None
+        except ValueError as exc:
+            errors.append(f"Строка {idx}: ошибка преобразования ({exc})")
+            continue
         tags.append(
             TagSpec(
                 name=name,
@@ -281,6 +304,10 @@ def import_tags_from_text():
         state.refresh_tags(storage.list_tags())
         _render_tags()
         log.set_status(f"Импортировано тегов: {len(tags)}")
+    else:
+        log.set_status("Не удалось импортировать теги. Проверьте формат CSV.")
+    for err in errors:
+        log.log(f"Import tags: {err}")
     dpg.delete_item("import_tags_dialog")
 
 
