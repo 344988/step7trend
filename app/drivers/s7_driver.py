@@ -3,8 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 import struct
+import traceback
 
 SNAP7_IMPORT_ERROR = None
+SNAP7_IMPORT_TRACEBACK = None
+SNAP7_IMPORT_HINT = None
 try:
     import snap7
     from snap7 import types as snap7_types
@@ -16,23 +19,30 @@ except ModuleNotFoundError as exc:  # pragma: no cover - optional dependency
     snap7_types = None
     snap7_util = None
     SNAP7_AVAILABLE = False
-    SNAP7_IMPORT_ERROR = (
-        "python-snap7 is not installed. Install: pip install python-snap7"
-    )
+    SNAP7_IMPORT_ERROR = f"python-snap7 не установлен. Установите: pip install python-snap7 ({exc})"
+    SNAP7_IMPORT_TRACEBACK = traceback.format_exc()
 except ImportError as exc:  # pragma: no cover - optional dependency
     snap7 = None
     snap7_types = None
     snap7_util = None
     SNAP7_AVAILABLE = False
-    SNAP7_IMPORT_ERROR = (
-        "python-snap7 import error. Reinstall: pip install --force-reinstall python-snap7"
-    )
+    SNAP7_IMPORT_ERROR = f"python-snap7 установлен, но импорт не удался: {exc}"
+    SNAP7_IMPORT_TRACEBACK = traceback.format_exc()
 except Exception as exc:  # pragma: no cover - optional dependency
     snap7 = None
     snap7_types = None
     snap7_util = None
     SNAP7_AVAILABLE = False
-    SNAP7_IMPORT_ERROR = f"snap7 failed to load: {type(exc).__name__}: {exc}"
+    SNAP7_IMPORT_ERROR = f"snap7 import failed ({type(exc).__name__}): {exc}"
+    SNAP7_IMPORT_TRACEBACK = traceback.format_exc()
+
+if SNAP7_IMPORT_ERROR:
+    lowered = SNAP7_IMPORT_ERROR.lower()
+    if "dll load failed" in lowered or "winerror 126" in lowered or "winerror 193" in lowered:
+        SNAP7_IMPORT_HINT = (
+            "Похоже, не загружается нативная DLL. Проверьте: 64-bit Python ↔ 64-bit snap7, "
+            "установлен Microsoft Visual C++ Redistributable, библиотека snap7.dll доступна."
+        )
 
 
 @dataclass(frozen=True)
@@ -68,7 +78,8 @@ class S7Driver:
     def connect(self) -> None:
         if not SNAP7_AVAILABLE:
             raise RuntimeError(
-                "python-snap7 is not installed. Install it to enable S7 communication."
+                SNAP7_IMPORT_ERROR
+                or "python-snap7 не установлен. Установите: pip install python-snap7"
             )
         self.client = snap7.client.Client()
         self.client.connect(self.ip, self.rack, self.slot, self.port)

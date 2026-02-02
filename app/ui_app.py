@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import csv
+import platform
 import sys
 import site
+import traceback
 import threading
 import time
 from collections import deque
@@ -18,7 +20,13 @@ from app.core.logger import UILogger
 from app.services.scan_service import ScanService
 from app.services.s7_service import S7Service
 from app.storage.workspace import WorkspaceStorage
-from app.drivers.s7_driver import TagSpec, SNAP7_AVAILABLE, SNAP7_IMPORT_ERROR
+from app.drivers.s7_driver import (
+    TagSpec,
+    SNAP7_AVAILABLE,
+    SNAP7_IMPORT_ERROR,
+    SNAP7_IMPORT_TRACEBACK,
+    SNAP7_IMPORT_HINT,
+)
 
 
 # ---------------------------
@@ -185,9 +193,17 @@ def scan_clicked():
 def connect_controller(ip: str):
     try:
         if not SNAP7_AVAILABLE:
-            message = SNAP7_IMPORT_ERROR or "python-snap7 is not installed. Install: pip install python-snap7"
+            message = SNAP7_IMPORT_ERROR or "python-snap7 не установлен. Установите: pip install python-snap7"
+            hint = SNAP7_IMPORT_HINT
+            if hint:
+                message = f"{message}. {hint}"
             log.set_status(message)
             log.log(f"Connect error: {message}")
+            log.log(f"Python executable: {sys.executable}")
+            log.log(f"Python version: {sys.version}")
+            log.log(f"Architecture: {platform.architecture()}")
+            if SNAP7_IMPORT_TRACEBACK:
+                log.log(SNAP7_IMPORT_TRACEBACK)
             return
         s7_service.connect(ip=ip)
         state.selected_ip = ip
@@ -433,6 +449,18 @@ def export_to_excel():
     log.set_status(f"Экспортировано: {filename}")
 
 
+def check_snap7_import():
+    try:
+        import snap7
+
+        log.set_status(f"snap7 OK, version: {getattr(snap7, '__version__', 'unknown')}")
+        log.log(f"snap7 import OK: version={getattr(snap7, '__version__', 'unknown')}")
+    except Exception:
+        tb = traceback.format_exc()
+        log.set_status("snap7 import failed. См. лог.")
+        log.log(tb)
+
+
 def _build_layout():
     with dpg.window(label=APP_TITLE, width=1360, height=920):
         dpg.add_text("Статус:", bullet=True)
@@ -450,6 +478,9 @@ def _build_layout():
             dpg.add_input_float(label="timeout", default_value=0.25, width=120, tag="scan_timeout")
             dpg.add_input_int(label="workers", default_value=256, width=120, tag="scan_workers")
             dpg.add_button(label="Scan", callback=log.safe_cb("Scan", lambda *_: scan_clicked()))
+            dpg.add_button(label="Проверить snap7 импорт", callback=log.safe_cb("snap7", lambda *_: check_snap7_import()))
+
+        dpg.add_input_text(label="Selected IP", default_value="", width=260, tag="selected_ip", readonly=True)
 
         dpg.add_input_text(label="Selected IP", default_value="", width=260, tag="selected_ip", readonly=True)
 
