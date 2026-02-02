@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
+from tkinter import filedialog  # добавлено для импорта CSV
 import dearpygui.dearpygui as dpg
 
 from app.config import APP_TITLE, VIEWPORT_W, VIEWPORT_H, FONT_SIZE, DB_PATH, S7_POLL_INTERVAL
