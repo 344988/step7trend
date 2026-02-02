@@ -10,7 +10,8 @@ from dataclasses import dataclass, field
 from typing import Optional, Tuple, Dict
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
+import csv
 
 # ===========================
 # Optional deps
@@ -353,7 +354,7 @@ def modbus_writer_loop(state: TagState, stop_evt: threading.Event, context, dt_g
 
 
 def modbus_server_loop(state: TagState, stop_evt: threading.Event, host_getter, port_getter, dt_getter,
-                      stats: ModbusStats, logger: LogSink):
+                       stats: ModbusStats, logger: LogSink):
     if not PYMODBUS_OK:
         logger.err("pymodbus is not installed. Install: pip install pymodbus")
         return
@@ -451,6 +452,10 @@ class App(tk.Tk):
 
         self.btn_stop = ttk.Button(top, text="■ Stop", command=self.stop_all, state="disabled")
         self.btn_stop.pack(side="left", padx=(8, 0))
+
+        # Export Tags CSV button
+        self.btn_export = ttk.Button(top, text="Export Tags CSV", command=self._export_tags_csv)
+        self.btn_export.pack(side="left", padx=(8, 0))
 
         ttk.Label(top, text="Update dt (s):").pack(side="left", padx=(20, 6))
         self.var_dt = tk.DoubleVar(value=UPDATE_DT_DEFAULT)
@@ -576,6 +581,39 @@ class App(tk.Tk):
         lines.append("  pip install python-snap7 pymodbus")
         return "\n".join(lines)
 
+    def _export_tags_csv(self):
+        """
+        Export PN_* tag definitions to a CSV file selected by the user.
+        Each entry is written as: name, area, db, byte_index, data_type, bit_index.
+        """
+        tags = [
+            ("PN_TEMP", "DB", DB_NUMBER, OFF_PN_TEMP, "REAL", ""),
+            ("PN_LEVEL", "DB", DB_NUMBER, OFF_PN_LEVEL, "REAL", ""),
+            ("PN_ENCODER", "DB", DB_NUMBER, OFF_PN_ENCODER, "DINT", ""),
+            ("PN_CURRENT", "DB", DB_NUMBER, OFF_PN_CURRENT, "REAL", ""),
+            ("PN_SPEED", "DB", DB_NUMBER, OFF_PN_SPEED, "REAL", ""),
+        ]
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            title="Export Tags CSV",
+        )
+        if not file_path:
+            return
+        try:
+            with open(file_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["name", "area", "db", "byte_index", "data_type", "bit_index"])
+                for row in tags:
+                    writer.writerow(row)
+            messagebox.showinfo("Export CSV", f"Экспортировано: {file_path}")
+            try:
+                self.logger.info(f"Exported tags CSV to {file_path}")
+            except Exception:
+                pass
+        except Exception as exc:
+            messagebox.showerror("Export CSV", f"Ошибка экспорта: {exc}")
+
     # Getters for threads
     def _get_dt(self): return float(self.var_dt.get())
     def _get_s7_port(self): return int(self.var_s7_port.get())
@@ -680,13 +718,11 @@ class App(tk.Tk):
         )
 
         # Drain logs
-        drained = 0
         while True:
             try:
                 tstamp, level, msg = self.logger.q.get_nowait()
             except queue.Empty:
                 break
-            drained += 1
             line = f"[{time.strftime('%H:%M:%S', time.localtime(tstamp))}] {level:<5} {msg}\n"
             self.txt.insert("end", line)
             self.txt.see("end")
@@ -701,3 +737,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
