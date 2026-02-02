@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 import struct
+import importlib
 import traceback
 
 SNAP7_IMPORT_ERROR = None
@@ -10,7 +11,10 @@ SNAP7_IMPORT_TRACEBACK = None
 SNAP7_IMPORT_HINT = None
 try:
     import snap7
-    from snap7 import types as snap7_types
+    try:
+        snap7_types = importlib.import_module("snap7.types")
+    except ModuleNotFoundError:
+        snap7_types = importlib.import_module("snap7.type")
     from snap7 import util as snap7_util
 
     SNAP7_AVAILABLE = True
