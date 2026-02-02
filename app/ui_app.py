@@ -482,6 +482,8 @@ def _build_layout():
 
         dpg.add_input_text(label="Selected IP", default_value="", width=260, tag="selected_ip", readonly=True)
 
+        dpg.add_input_text(label="Selected IP", default_value="", width=260, tag="selected_ip", readonly=True)
+
         with dpg.child_window(tag="scan_results", height=220, autosize_x=True, border=True):
             dpg.add_text("Результаты появятся здесь.")
 
