@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
+from tkinter import filedialog  # добавлено для импорта CSV
 import dearpygui.dearpygui as dpg
 
 from app.config import APP_TITLE, VIEWPORT_W, VIEWPORT_H, FONT_SIZE, DB_PATH, S7_POLL_INTERVAL
@@ -27,7 +28,6 @@ from app.drivers.s7_driver import (
     SNAP7_IMPORT_TRACEBACK,
     SNAP7_IMPORT_HINT,
 )
-
 
 # ---------------------------
 # Global objects
@@ -248,6 +248,7 @@ def show_tag_import_dialog():
         with dpg.group(horizontal=True):
             dpg.add_button(label="Вставить пример", callback=lambda: _fill_tag_example())
             dpg.add_button(label="Импорт", callback=lambda: import_tags_from_text())
+            dpg.add_button(label="Загрузить CSV", callback=lambda: import_tags_from_csv())  # новая кнопка
             dpg.add_button(label="Закрыть", callback=lambda: dpg.delete_item(tag))
 
 
@@ -309,6 +310,28 @@ def import_tags_from_text():
     for err in errors:
         log.log(f"Import tags: {err}")
     dpg.delete_item("import_tags_dialog")
+
+
+def import_tags_from_csv():
+    """
+    Открыть CSV-файл с тегами и импортировать его в систему.
+    """
+    filename = filedialog.askopenfilename(
+        filetypes=[("CSV files", "*.csv")],
+        title="Выберите CSV файл"
+    )
+    if not filename:
+        return
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as exc:
+        log.set_status(f"Ошибка чтения CSV: {exc}")
+        return
+    # Заполняем поле ввода и вызываем импорт
+    if dpg.does_item_exist("tags_import_text"):
+        dpg.set_value("tags_import_text", content)
+    import_tags_from_text()
 
 
 def _render_tags():
