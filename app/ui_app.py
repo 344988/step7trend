@@ -29,6 +29,7 @@ from app.drivers.s7_driver import (
     SNAP7_IMPORT_HINT,
 )
 
+
 # ---------------------------
 # Global objects
 # ---------------------------
@@ -51,6 +52,9 @@ TREND_MODE_TAG = "trend_mode"
 TREND_WINDOW_TAG = "trend_window"
 TREND_PAUSE_TAG = "trend_pause"
 SELECTED_IP_TAG = "selected_ip_input"
+CONNECT_RACK_TAG = "connect_rack"
+CONNECT_SLOT_TAG = "connect_slot"
+CONNECT_PORT_TAG = "connect_port"
 
 trend_last_update = 0.0
 trend_windows = {}
@@ -211,8 +215,11 @@ def connect_controller(ip: str):
             if SNAP7_IMPORT_TRACEBACK:
                 log.log(SNAP7_IMPORT_TRACEBACK)
             return
-        log.log(f"CONNECT PARAMS: ip={ip_value!r} rack=0 slot=1 port=102")
-        s7_service.connect(ip=ip_value)
+        rack = int(dpg.get_value(CONNECT_RACK_TAG)) if dpg.does_item_exist(CONNECT_RACK_TAG) else 0
+        slot = int(dpg.get_value(CONNECT_SLOT_TAG)) if dpg.does_item_exist(CONNECT_SLOT_TAG) else 1
+        port = int(dpg.get_value(CONNECT_PORT_TAG)) if dpg.does_item_exist(CONNECT_PORT_TAG) else 102
+        log.log(f"CONNECT PARAMS: ip={ip_value!r} rack={rack} slot={slot} port={port}")
+        s7_service.connect(ip=ip_value, rack=rack, slot=slot, port=port)
         state.selected_ip = ip_value
         log.set_status(f"Подключено: {ip_value}")
     except Exception as exc:
@@ -248,7 +255,6 @@ def show_tag_import_dialog():
         with dpg.group(horizontal=True):
             dpg.add_button(label="Вставить пример", callback=lambda: _fill_tag_example())
             dpg.add_button(label="Импорт", callback=lambda: import_tags_from_text())
-            dpg.add_button(label="Загрузить CSV", callback=lambda: import_tags_from_csv())  # новая кнопка
             dpg.add_button(label="Закрыть", callback=lambda: dpg.delete_item(tag))
 
 
@@ -279,6 +285,8 @@ def import_tags_from_text():
         parts = [p.strip() for p in line.split(",")]
         if len(parts) < 5:
             errors.append(f"Строка {idx}: недостаточно полей")
+            continue
+        if idx == 1 and parts[0].lower() == "name" and parts[1].lower() == "area":
             continue
         try:
             name = parts[0]
@@ -312,28 +320,6 @@ def import_tags_from_text():
     dpg.delete_item("import_tags_dialog")
 
 
-def import_tags_from_csv():
-    """
-    Открыть CSV-файл с тегами и импортировать его в систему.
-    """
-    filename = filedialog.askopenfilename(
-        filetypes=[("CSV files", "*.csv")],
-        title="Выберите CSV файл"
-    )
-    if not filename:
-        return
-    try:
-        with open(filename, "r", encoding="utf-8") as f:
-            content = f.read()
-    except Exception as exc:
-        log.set_status(f"Ошибка чтения CSV: {exc}")
-        return
-    # Заполняем поле ввода и вызываем импорт
-    if dpg.does_item_exist("tags_import_text"):
-        dpg.set_value("tags_import_text", content)
-    import_tags_from_text()
-
-
 def _render_tags():
     if not dpg.does_item_exist(TAG_LIST_PARENT):
         return
@@ -356,6 +342,9 @@ def _render_tags():
 
 
 def add_monitor_tag(tag: str):
+    if not s7_service.is_connected():
+        log.set_status("Нет подключения к S7. Подключитесь к контроллеру.")
+        return
     state.monitored_tags.add(tag)
     s7_service.set_active_tags(state.monitored_tags)
     s7_service.start_polling()
@@ -538,6 +527,12 @@ def _build_layout():
             dpg.add_button(label="Проверить snap7 импорт", callback=log.safe_cb("snap7", lambda *_: check_snap7_import()))
 
         dpg.add_input_text(label="Selected IP", default_value="", width=260, tag=SELECTED_IP_TAG, readonly=True)
+
+        dpg.add_text("Параметры подключения S7:")
+        with dpg.group(horizontal=True):
+            dpg.add_input_int(label="Rack", default_value=0, width=80, tag=CONNECT_RACK_TAG)
+            dpg.add_input_int(label="Slot", default_value=1, width=80, tag=CONNECT_SLOT_TAG)
+            dpg.add_input_int(label="Port", default_value=1102, width=100, tag=CONNECT_PORT_TAG)
 
         with dpg.child_window(tag="scan_results", height=220, autosize_x=True, border=True):
             dpg.add_text("Результаты появятся здесь.")
