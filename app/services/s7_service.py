@@ -75,6 +75,8 @@ class S7Service:
     def start_polling(self) -> None:
         if self._thread and self._thread.is_alive():
             return
+        if not self.active_tags:
+            self.logger("S7 poll warning: no active tags selected")
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._thread.start()

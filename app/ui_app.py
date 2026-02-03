@@ -59,6 +59,7 @@ CONNECT_PORT_TAG = "connect_port"
 trend_last_update = 0.0
 trend_windows = {}
 trend_window_counter = 0
+tags_last_refresh = 0.0
 
 
 def ui_post(fn):
@@ -82,6 +83,7 @@ def _frame_cb(sender=None, app_data=None):
     _ui_pump()
     _refresh_trend()
     _refresh_trend_windows()
+    _refresh_tags_view()
     # re-schedule next frame
     dpg.set_frame_callback(dpg.get_frame_count() + 1, _frame_cb)
 
@@ -360,6 +362,17 @@ def _render_tags():
             dpg.add_button(label="Добавить в монитор", callback=lambda s, a, t=tag: add_monitor_tag(t))
             dpg.add_button(label="Удалить слежение", callback=lambda s, a, t=tag: remove_monitor_tag(t))
             dpg.add_button(label="Построить тренд", callback=lambda s, a, t=tag: set_trend_tag(t))
+
+
+def _refresh_tags_view():
+    global tags_last_refresh
+    if not dpg.does_item_exist(TAG_LIST_PARENT):
+        return
+    now = time.time()
+    if now - tags_last_refresh < 1.0:
+        return
+    tags_last_refresh = now
+    _render_tags()
 
 
 def add_monitor_tag(tag: str):
