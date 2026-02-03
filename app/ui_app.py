@@ -361,7 +361,7 @@ def _render_tags():
 
 
 def add_monitor_tag(tag: str):
-    if not s7_service.is_connected():
+    if not s7_service.driver:
         log.set_status("Нет подключения к S7. Подключитесь к контроллеру.")
         return
     state.monitored_tags.add(tag)
