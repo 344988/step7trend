@@ -38,6 +38,9 @@ class S7Service:
         self.driver.connect()
         self.logger(f"S7 connected: {ip} rack={rack} slot={slot}")
 
+    def is_connected(self) -> bool:
+        return self.driver is not None and getattr(self.driver, "client", None) is not None
+
     def disconnect(self) -> None:
         self.stop_polling()
         if self.driver:
