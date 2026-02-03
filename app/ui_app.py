@@ -352,16 +352,18 @@ def _render_tags():
     for window in trend_windows.values():
         if dpg.does_item_exist(window["tag"]):
             dpg.configure_item(window["tag"], items=tags)
+    latest_values = dict(state.latest_tags) if state.latest_tags else {}
     for tag in tags:
+        value_text = f" = {latest_values[tag]:.3f}" if tag in latest_values else ""
         with dpg.group(horizontal=True, parent=TAG_LIST_PARENT):
-            dpg.add_text(tag)
+            dpg.add_text(f"{tag}{value_text}")
             dpg.add_button(label="Добавить в монитор", callback=lambda s, a, t=tag: add_monitor_tag(t))
             dpg.add_button(label="Удалить слежение", callback=lambda s, a, t=tag: remove_monitor_tag(t))
             dpg.add_button(label="Построить тренд", callback=lambda s, a, t=tag: set_trend_tag(t))
 
 
 def add_monitor_tag(tag: str):
-    if not s7_service.driver:
+    if not s7_service.is_connected():
         log.set_status("Нет подключения к S7. Подключитесь к контроллеру.")
         return
     state.monitored_tags.add(tag)

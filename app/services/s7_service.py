@@ -29,6 +29,7 @@ class S7Service:
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
+        self._last_ok_ts: Optional[float] = None
 
         if self.tags:
             self.storage.upsert_tags(self.tags)
@@ -39,7 +40,11 @@ class S7Service:
         self.logger(f"S7 connected: {ip} rack={rack} slot={slot}")
 
     def is_connected(self) -> bool:
-        return self.driver is not None and getattr(self.driver, "client", None) is not None
+        return (
+            self.driver is not None
+            and getattr(self.driver, "client", None) is not None
+            and bool(self.driver.client.get_connected())
+        )
 
     def disconnect(self) -> None:
         self.stop_polling()
@@ -112,8 +117,11 @@ class S7Service:
                         self.state.latest_tags.update({k: float(v) for k, v in values.items()})
                 if self.state:
                     self.state.refresh_tags(self.storage.list_tags())
+                self._last_ok_ts = ts
             except Exception as exc:  # pragma: no cover - runtime integration
-                self.logger(f"S7 poll error: {exc}")
+                self.logger(f"S7 poll error: {type(exc).__name__}: {exc}")
+            if self._last_ok_ts and time.time() - self._last_ok_ts > 10:
+                self.logger("S7 poll warning: no new data for 10s")
             time.sleep(self.poll_interval)
 
     def _find_tag(self, tag_name: str) -> TagSpec:
